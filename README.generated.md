@@ -1,62 +1,67 @@
-# 📚 Automated Codebase Auditing and Documentation Suite
+# 🧠 Codebase Intelligence Toolkit (Scanner & Doc Generator)
 
-## Project Overview
+## 📚 Project Overview
 
-This suite provides a systematic, dual-component solution for managing the software development lifecycle. It automates the auditing process by first indexing an entire codebase and subsequently generating high-quality, holistic documentation and README files using locally hosted Large Language Models (LLMs).
+This toolkit provides a cohesive Command Line Interface (CLI) utility suite designed for deep, automated comprehension and documentation of source codebases. By integrating structural scanning with local Large Language Models (LLMs) via Ollama, the system generates high-quality, structured technical documentation, most notably comprehensive `README.md` files, enabling seamless integration into static analysis pipelines.
 
-## Features
+## ✨ Features
 
-*   **Recursive Codebase Indexing:** Utility to traverse and catalog all files within a target directory, generating a clean path inventory.
-*   **LLM-Powered Documentation:** Integrates with local LLMs (via Ollama) to ingest raw file contents for analysis.
-*   **Architecture Summarization:** Performs multi-stage analysis to create high-level summaries of the codebase architecture.
-*   **Token Management:** Features structured prompting and token limit handling to ensure comprehensive documentation generation from large codebases.
+*   **Codebase Scanning:** Automatically discovers and maps the file structure of any provided directory.
+*   **LLM Orchestration:** Manages interaction with local LLMs via Ollama, including intelligent token chunking to handle large source files contextually.
+*   **Structured Documentation:** Generates polished, actionable documentation (e.g., READMEs) based on code analysis, rather than simple concatenation.
+*   **Advanced Prompting:** Utilizes sophisticated prompt engineering techniques to guide the LLM toward predictable and useful technical output.
+*   **Automation Ready:** Designed as a modular CLI tool suitable for integration into CI/CD and static analysis workflows.
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-*   **Primary Language:** Python
-*   **Core Functionality:** Command Line Interface (CLI) Tooling
-*   **AI Backend:** Large Language Models (LLMs) via Ollama
-*   **Analysis:** Code Parsing, Natural Language Processing
+*   **Language:** Python
+*   **Interface:** Command Line Interface (CLI)
+*   **LLM Backend:** Ollama (Local LLM Hosting)
+*   **Key Libraries:** (Implied dependencies for file system traversal, API calls, etc.)
 
-## Project Structure
+## 📁 Project Structure
 
-The suite is composed of two tightly coupled modules:
+```
+.
+├── codebase_analyzer/       # Core logic for file discovery and structural mapping.
+├── doc_generator/           # Module responsible for prompting and LLM interaction.
+├── utils/                   # Helper functions (e.g., token chunking, path normalization).
+├── requirements.txt        # Python dependencies list.
+└── main.py                  # Entry point for the CLI utility.
+```
 
-1.  **`file_scanner_utility`:** Responsible for the initial codebase ingestion. It recursively walks the provided path and creates a structured inventory file listing all accessible source code paths.
-2.  **`documentation_generator`:** The CLI entry point. It consumes the inventory from the scanner, reads file contents, and orchestrates the structured prompting and API calls to the local LLM to synthesize documentation.
+## 🚀 Setup
 
-## Setup
-
-1.  **Prerequisites:** Ensure Python 3.9+ is installed.
-2.  **Ollama:** You must have [Ollama](https://ollama.com/) running locally. Pull the desired model (e.g., `ollama pull llama3`).
-3.  **Installation:** Clone the repository and install dependencies:
+1.  **Install Python:** Ensure you have Python 3.8+ installed.
+2.  **Install Ollama:** Download and install the Ollama server application.
+3.  **Download Model:** Pull a suitable model (e.g., `llama3`) to run locally:
     ```bash
+    ollama pull llama3
+    ```
+4.  **Clone and Install Dependencies:**
+    ```bash
+    git clone <repository-url>
+    cd Codebase-Intelligence-Toolkit
     pip install -r requirements.txt
     ```
-4.  **Configuration:** Verify the `config.yaml` file points to your local Ollama endpoint.
 
-## Usage
+## ▶️ Usage
 
-The process is executed in two distinct, sequential steps:
+Ensure your Ollama server is running in the background before executing the tool.
 
-### 1. Scan the Codebase (Indexing)
-Execute the scanner utility against your target project directory. This creates the required input inventory file.
+To generate documentation for a project located in the `./src/my_app` directory, run the following command:
 
 ```bash
-python src/scanner/run_scan.py --path /path/to/your/codebase --output-inventory inventory.json
+python main.py --path ./src/my_app --model llama3 --output README.md
 ```
 
-### 2. Generate Documentation (LLM Analysis)
-Feed the generated inventory file to the documentation generator. This initiates the multi-stage LLM analysis.
+**Arguments:**
+*   `--path`: The root directory of the codebase to analyze.
+*   `--model`: The name of the model hosted in Ollama (e.g., `llama3`).
+*   `--output`: The desired filename for the generated documentation.
 
-```bash
-python src/generator/generate_docs.py --inventory inventory.json --output-dir ./docs_output
-```
+## 📌 Notes
 
-The system will output structured summaries and a comprehensive `README.md` in the specified output directory.
-
-## Notes
-
-*   **LLM Dependency:** The success and quality of the output are directly dependent on the model available in Ollama.
-*   **Scope Limitation:** For extremely large codebases (millions of lines), consider breaking the scanning process into manageable sub-directories to optimize token usage and processing time.
-*   **Error Handling:** The system includes basic retry logic for network/API failures with Ollama.
+*   **Ollama Dependency:** The tool is entirely dependent on a locally running Ollama instance accessible via the standard API endpoint.
+*   **Prompt Tuning:** Results are heavily dependent on the underlying LLM's capability and the sophistication of the system prompts.
+*   **Rate Limiting:** For large codebases, monitor potential API rate limits or process files in batches to ensure stability.

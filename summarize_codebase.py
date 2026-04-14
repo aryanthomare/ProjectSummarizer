@@ -7,7 +7,9 @@ Usage:
     python summarize_codebase.py C:\\path\\to\\folder --max-context-tokens 8000
     python summarize_codebase.py C:\\path\\to\\folder --system-prompt-file system_prompt.md --prompt-file prompt.md --batch-prompt-file batch_prompt.md
     python summarize_codebase.py C:\\path\\to\\folder --verbose
-    python summarize_codebase.py C:\\path\\to\\folder --generate-readme --output-readme README.generated.md
+    python summarize_codebase.py C:\\path\\to\\folder --show-batch-responses
+    python summarize_codebase.py C:\\path\\to\\folder --generate-readme --output-readme JSON\\readme.generated.md
+    python summarize_codebase.py C:\\path\\to\\folder --json --output-json JSON\\output.json
 """
 
 from __future__ import annotations
@@ -82,7 +84,10 @@ def parse_args() -> argparse.Namespace:
         "--max-file-tokens",
         type=int,
         default=DEFAULT_MAX_FILE_TOKENS,
-        help="Maximum estimated tokens to keep from any single file",
+        help=(
+            "Maximum estimated tokens to keep from any single non-Python file; "
+            "use 0 to keep the full file"
+        ),
     )
     parser.add_argument(
         "--system-prompt-file",
@@ -111,7 +116,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-readme",
-        default="README.generated.md",
+        default="JSON/readme.generated.md",
         help="Output README path when --generate-readme is used (relative paths are resolved under the target folder)",
     )
     parser.add_argument(
@@ -120,9 +125,22 @@ def parse_args() -> argparse.Namespace:
         help="Enable detailed runtime logs and ask Ollama for a more detailed summary",
     )
     parser.add_argument(
+        "--show-batch-responses",
+        action="store_true",
+        help="Print each batch response from the LLM to stderr",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Print the final response as JSON",
+    )
+    parser.add_argument(
+        "--output-json",
+        default="JSON/output.json",
+        help=(
+            "Write JSON output to this path (file or directory). "
+            "Relative paths are resolved under the target folder."
+        ),
     )
     return parser.parse_args()
 
@@ -134,6 +152,24 @@ def estimate_tokens(text: str) -> int:
 def log_verbose(enabled: bool, message: str) -> None:
     if enabled:
         print(f"[verbose] {message}", file=sys.stderr, flush=True)
+
+
+def log_context(message: str) -> None:
+    print(f"[context] {message}", file=sys.stderr, flush=True)
+
+
+def log_batch_response(batch_index: int, batch_total: int, response_text: str) -> None:
+    print(
+        f"[batch-output] Batch {batch_index}/{batch_total} response start",
+        file=sys.stderr,
+        flush=True,
+    )
+    print(response_text, file=sys.stderr, flush=True)
+    print(
+        f"[batch-output] Batch {batch_index}/{batch_total} response end",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def load_markdown_prompt(path_text: str, fallback: str, label: str, verbose: bool) -> str:
@@ -199,11 +235,15 @@ def resolve_model_name(ollama_url: str, requested_model: str, verbose: bool) -> 
 
 
 def read_file_text(path: Path, max_tokens: int) -> str:
-    max_chars = max_tokens * CHARS_PER_TOKEN
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return "[unreadable file]"
+
+    if max_tokens <= 0:
+        return text
+
+    max_chars = max_tokens * CHARS_PER_TOKEN
 
     if len(text) <= max_chars:
         return text
@@ -211,12 +251,28 @@ def read_file_text(path: Path, max_tokens: int) -> str:
     return text[:max_chars] + "\n\n[truncated]\n"
 
 
+def effective_file_token_limit(path: Path, max_file_tokens: int) -> int:
+    if path.suffix.lower() == ".py":
+        return 0
+    return max_file_tokens
+
+
 def build_file_prompt(root: Path, files: Iterable[Path], max_file_tokens: int, verbose: bool) -> str:
     parts: list[str] = []
     for path in files:
+        print(path)
         relative_path = path.relative_to(root)
         log_verbose(verbose, f"Reading file: {relative_path}")
-        content = read_file_text(path, max_file_tokens)
+        file_token_limit = effective_file_token_limit(path, max_file_tokens)
+        content = read_file_text(path, file_token_limit)
+        token_estimate = estimate_tokens(content)
+        if file_token_limit <= 0:
+            limit_note = "full file"
+        else:
+            limit_note = f"cap {file_token_limit} token(s)"
+        log_context(f"File: {relative_path} ({token_estimate} estimated token(s), {limit_note})")
+        log_context("Full context:")
+        print(content, file=sys.stderr, flush=True)
         parts.append(
             f"### File: {relative_path}\n"
             f"```{path.suffix.lstrip('.') if path.suffix else 'text'}\n"
@@ -243,6 +299,12 @@ def split_into_batches(
         file_tokens = estimate_tokens(file_block)
 
         if current_files and current_tokens + file_tokens > max_context_tokens:
+            log_context(
+                f"Batch {len(batches) + 1}: {len(current_files)} file(s) before model call"
+            )
+            log_context(
+                "Files: " + ", ".join(str(path.relative_to(root)) for path in current_files)
+            )
             log_verbose(
                 verbose,
                 f"Closing batch {len(batches) + 1}: {len(current_files)} files, ~{current_tokens} tokens",
@@ -262,6 +324,8 @@ def split_into_batches(
         current_tokens += file_tokens
 
     if current_files:
+        log_context(f"Batch {len(batches) + 1}: {len(current_files)} file(s) before model call")
+        log_context("Files: " + ", ".join(str(path.relative_to(root)) for path in current_files))
         log_verbose(
             verbose,
             f"Closing batch {len(batches) + 1}: {len(current_files)} files, ~{current_tokens} tokens",
@@ -355,6 +419,19 @@ def resolve_output_path(root: Path, output_path_text: str) -> Path:
     return (root / path).resolve()
 
 
+def resolve_json_output_path(root: Path, output_json_text: str, default_filename: str) -> Path:
+    output_path = resolve_output_path(root, output_json_text)
+    if output_path.exists() and output_path.is_dir():
+        return (output_path / default_filename).resolve()
+    return output_path
+
+
+def write_json_output(path: Path, payload: str, verbose: bool) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(payload.rstrip() + "\n", encoding="utf-8")
+    log_verbose(verbose, f"Wrote JSON output to {path}")
+
+
 def generate_readme_markdown(
     ollama_url: str,
     model: str,
@@ -385,26 +462,23 @@ def generate_readme_markdown(
     return sanitize_markdown_output(response)
 
 
-def summarize_readme_json(
+def summarize_repository_json_from_text(
     ollama_url: str,
     model: str,
-    readme_path: Path,
+    repository_text: str,
+    repository_source_label: str,
     system_prompt: str,
     json_prompt: str,
     verbose: bool,
 ) -> str:
-    log_verbose(verbose, f"Reading README content from {readme_path} for JSON summarization")
-    try:
-        readme_text = readme_path.read_text(encoding="utf-8", errors="replace")
-    except OSError as exc:
-        raise SystemExit(f"Failed to read generated README from {readme_path}: {exc}") from exc
+    log_verbose(verbose, f"Preparing repository content from {repository_source_label} for JSON summarization")
 
     prompt = (
         f"{json_prompt}{verbose_prompt_suffix(verbose)}\n\n"
-        "Task: Summarize the following README content into the requested JSON format. "
+        "Task: Summarize the following repository content into the requested JSON format. "
         "Return only valid JSON and do not include markdown fences.\n\n"
-        f"README path: {readme_path}\n\n"
-        f"{readme_text}"
+        f"Repository source: {repository_source_label}\n\n"
+        f"{repository_text}"
     )
     return ollama_generate(
         ollama_url,
@@ -485,8 +559,8 @@ def main() -> int:
         raise SystemExit(f"Not a folder: {root}")
     if args.max_context_tokens <= 0:
         raise SystemExit("--max-context-tokens must be greater than zero")
-    if args.max_file_tokens <= 0:
-        raise SystemExit("--max-file-tokens must be greater than zero")
+    if args.max_file_tokens < 0:
+        raise SystemExit("--max-file-tokens must be zero or greater")
 
     log_verbose(args.verbose, f"Scanning code files under {root}")
     files = sorted(iter_code_files(root))
@@ -527,8 +601,9 @@ def main() -> int:
         args.max_file_tokens,
         args.verbose,
     )
-    batch_summaries = [
-        summarize_batch(
+    batch_summaries: list[str] = []
+    for index, batch in enumerate(batches):
+        batch_summary = summarize_batch(
             args.ollama_url,
             model,
             batch,
@@ -539,8 +614,9 @@ def main() -> int:
             batch_index=index + 1,
             batch_total=len(batches),
         )
-        for index, batch in enumerate(batches)
-    ]
+        if args.show_batch_responses:
+            log_batch_response(index + 1, len(batches), batch_summary)
+        batch_summaries.append(batch_summary)
     final_summary = summarize_overall(
         args.ollama_url,
         model,
@@ -563,38 +639,37 @@ def main() -> int:
             readme_prompt,
             args.verbose,
         )
+
         readme_output_path = resolve_output_path(root, args.output_readme)
         readme_output_path.parent.mkdir(parents=True, exist_ok=True)
         readme_output_path.write_text(readme_markdown + "\n", encoding="utf-8")
         log_verbose(args.verbose, f"Wrote generated README to {readme_output_path}")
 
-        readme_json = summarize_readme_json(
-            args.ollama_url,
-            model,
-            readme_output_path,
-            system_prompt,
-            user_prompt,
-            args.verbose,
-        )
+        if args.output_json:
+            json_output_path = resolve_json_output_path(root, args.output_json, "summary.json")
+            write_json_output(json_output_path, final_summary, args.verbose)
 
-        print(readme_json)
+        print(final_summary)
         return 0
 
     if args.json:
-        print(
-            json.dumps(
-                {
-                    "root": str(root),
-                    "model": model,
-                    "batch_count": len(batches),
-                    "verbose": args.verbose,
-                    "readme_generated": args.generate_readme,
-                    "readme_output_path": str(readme_output_path) if readme_output_path else None,
-                    "summary": final_summary,
-                },
-                indent=2,
-            )
+        json_output = json.dumps(
+            {
+                "root": str(root),
+                "model": model,
+                "batch_count": len(batches),
+                "verbose": args.verbose,
+                "readme_generated": args.generate_readme,
+                "readme_output_path": str(readme_output_path) if readme_output_path else None,
+                "summary": final_summary,
+            },
+            indent=2,
         )
+        if args.output_json:
+            json_output_path = resolve_json_output_path(root, args.output_json, "summary.json")
+            write_json_output(json_output_path, json_output, args.verbose)
+
+        print(json_output)
     else:
         print(final_summary)
         if readme_output_path:

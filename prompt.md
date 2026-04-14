@@ -1,51 +1,37 @@
-Summarize the provided repository context for an information section of a Profesional website. Ensure the summary is clear and concise, suitable for a technical audience. This repository contains multiple components that work together to achieve a specific goal. Provide answers in JSON format of the following examples:
+Summarize the repository into a single JSON object for a technical profile or project summary.
 
+Use the repository summary and batch summaries together. The output should describe the whole codebase, not just one visible file or one surface area.
+
+Return only valid JSON with these fields:
 {
-  "title": "DrawBot - Autonomous Whiteboard Drawing Robot",
-  "date": "2025",
-  "description": "Engineered a wall-climbing robot that autonomously reproduces digital images on magnetic whiteboards. Led development of navigation and control systems including motor PID loops, encoder integration, and odometry sensor fusion. Implemented servo and marker control logic, integrated webcam-based computer vision for absolute positioning, and developed a web-based debugging interface for manual control and telemetry. Collaborated on software integration using FreeRTOS task scheduling, coordinating real-time G-code execution, navigation state machines, and multi-subsystem synchronization across drive systems, drawing mechanisms, and localization sensors.",
-  "tags": [
-    "Embedded Systems",
-    "FreeRTOS",
-    "Computer Vision",
-    "PID Control",
-    "Robotics",
-    "ESP32",
-    "CAD"
-  ],
-  "link": "https://github.com/pyim-git/eecs473-fa25-drawbot"
+  "title": "<short repository title>",
+  "date": "<year or date if known, otherwise N/A>",
+  "description": "<brief summary of the repository>",
+  "tags": ["<tag1>", "<tag2>", "<tag3>"],
+  "link": "<git link if available, otherwise N/A>"
 }
 
+Guidelines:
+- Keep the description under 200 words.
+- Use simple, clear language.
+- Explain the overall purpose of the repository.
+- Mention the major modules, tools, or subsystems that make up the project.
+- If the repository contains multiple stages or workflows, include them in the description.
+- Mention the key flows, behavior, or architecture if visible.
+- Mention important dependencies, frameworks, or technologies if visible.
+- Do not describe the repository as only one app if it clearly contains several related tools or steps.
+- You may refer to languages and modules but do not mention specific file names
+- Keep tags short and relevant.
+- If a field is unknown, use "N/A" rather than inventing details.
+- Do not wrap the JSON in markdown fences.
 
-{
-  "title": "Image Filtering with Gaussian & Laplacian Pyramids",
-  "date": "2025",
-  "description": "Applied Gaussian and Laplacian pyramids for image processing tasks including multi-resolution blending, detail enhancement, and noise reduction. Leveraged pyramid techniques to decompose, filter, and combine images.",
-  "tags": [
-    "Python",
-    "Computer Vision",
-    "Image Filters"
-  ]
-},
-{
-  "title": "ICU Patient Survival Prediction Model",
-  "date": "2025",
-  "description": "Developed ML model predicting 30-day ICU patient mortality using Python and scikit-learn. Implemented feature extraction, missing data imputation, and normalization. Conducted hyperparameter tuning with cross-validation for logistic regression. Addressed class imbalance with asymmetric cost functions and explored non-linear modeling using kernel methods.",
-  "tags": [
-    "Python",
-    "Data Analysis",
-    "Machine Learning"
-  ]
-},
+In the description field focus on what the project does in wording understandable to average people
 
-Ensure a titile, date, description, and tags for each project.
-For description focus on:
-- Description breifness
-- Simplicity of language
-- Overall purpose
-- Main modules/components
-- Key flows and behavior
-- Dependencies/frameworks
-
-
-Make sure that they are under 50 words. 
+Example tags:
+  "Embedded Systems",
+  "FreeRTOS",
+  "Computer Vision",
+  "PID Control",
+  "Robotics",
+  "ESP32",
+  "CAD"

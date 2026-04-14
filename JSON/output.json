@@ -1,0 +1,14 @@
+{
+  "title": "Codebase Documentation & Summarization Pipeline",
+  "date": "2025",
+  "description": "A comprehensive, multi-stage CI/CD workflow designed to automate the generation of structured documentation and metadata from disparate codebases. The system operates by syncing projects, triggering LLM-powered analysis (via Ollama) when metadata is incomplete. Core modules include recursive file scanning, codebase summarization, and centralized data aggregation. The entire flow culminates in populating a master 'work-data.json' manifest, providing a complete inventory of analyzed projects.",
+  "tags": [
+    "Python",
+    "CI/CD",
+    "LLM Integration",
+    "Data Pipeline",
+    "Code Analysis",
+    "Automation"
+  ],
+  "link": "N/A"
+}

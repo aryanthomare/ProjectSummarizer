@@ -48,4 +48,4 @@ For description focus on:
 - Dependencies/frameworks
 
 
-Make sure that they are under 50 words. 
+Make sure that they are under 80 words. 
