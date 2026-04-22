@@ -106,7 +106,7 @@ def run_summarizer(project_dir: Path, summarize_script: Path) -> None:
         "--generate-readme",
         "--json",
         "--max-file-tokens",
-        "100",
+        "2000",
         "--max-context-tokens",
         "500000",
         "--show-batch-responses",
