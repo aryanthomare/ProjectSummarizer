@@ -166,3 +166,43 @@ python sync_published_projects.py --git-sync --git-remote origin --git-branch ma
 2. Project matching in website data is title-based and case-insensitive.
 3. New project entries are prepended in the `Projects` list.
 4. Git operations only stage/commit/push the website `work-data.json` file.
+
+## End-to-End Flow: Generate JSON → Merge into work-data → Commit to Git
+
+### Step 1 — Scan code files (`scan_code_files.py`)
+`summarize_codebase.py` imports and calls `iter_code_files(root)` from this module. It recursively walks the target folder, filtering for files with known code extensions (`.py`, `.js`, `.cpp`, etc.) or known config filenames (`package.json`, `Makefile`, etc.), while skipping noise dirs like `node_modules`, `.git`, `venv`, etc. The result is a sorted list of relevant file paths.
+
+### Step 2 — Batch & summarize (`summarize_codebase.py`)
+1. **Batch splitting** — Files are grouped into `FileBatch` objects, each staying under `--max-context-tokens`. Each file's content is optionally truncated via `--max-file-tokens` (Python files are never truncated).
+2. **Per-batch LLM calls** — Each batch is sent to a local Ollama model (`POST /api/generate`) using the prompt in `batch_prompt.md`. The model returns a text summary for that batch.
+3. **Final synthesis** — All batch summaries are combined and sent to Ollama again using `prompt.md`, which instructs the model to return a strict JSON object with fields: `title`, `date`, `description`, `tags`, `link`.
+4. **Write output** — When run with `--json` and `--generate-readme`, the result is written to `<target_folder>/JSON/output.json`. The exact path is resolved by `resolve_json_output_path`.
+
+### Step 3 — Merge into `work-data.json` (`sync_published_projects.py`)
+1. **Resolve projects** — Either all subdirs under `--published-root`, or specific `--project` filters.
+2. **Ensure JSON exists** — For each project dir, `ensure_output_json` checks if `JSON/output.json` already exists. If not (or `--force-regenerate` is set), it calls `summarize_codebase.py` as a subprocess with a fixed set of flags (including `--generate-readme --json`).
+3. **Load summary** — `load_project_summary` reads the `output.json` and extracts only the five fields (`title`, `date`, `description`, `tags`, `link`).
+4. **Upsert into work-data** — `get_projects_items` finds or creates the `"Projects"` section inside `work-data.json`. `upsert_projects` then updates existing entries by title (case-insensitive), or prepends new ones.
+5. **Write back** — If anything changed, `work-data.json` is overwritten.
+
+### Step 4 — Git commit & push (optional)
+If `--git-sync` is passed:
+1. `git_sync_work_data` resolves the repo root from `work-data.json`'s parent directory.
+2. Runs `git add <relative path to work-data.json>`.
+3. Checks `git diff --cached --quiet` — skips commit if there are no staged changes.
+4. Runs `git commit -m <message>`.
+5. Determines the current branch (or uses `--git-branch`) and runs `git push <remote> <branch>`.
+
+### Quick command to trigger the full flow
+
+```bash
+python sync_published_projects.py \
+  --published-root "C:/path/to/Published" \
+  --work-data "C:/path/to/work-data.json" \
+  --project "MyProject" \
+  --force-regenerate \
+  --git-sync \
+  --commit-message "chore: update project summaries"
+```
+
+Without `--git-sync`, the file is updated on disk but nothing is committed. Add `--check-work-data` to do a dry run that reports whether the file would change without writing anything.
