@@ -22,6 +22,13 @@ python scan_code_files.py C:\path\to\folder
 python scan_code_files.py C:\path\to\folder --json
 ```
 
+#### CLI Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `folder` | positional | *(required)* | Folder path to search for code files |
+| `--json` | flag | `false` | Print results as a JSON array instead of plain text, one path per line |
+
 ### `summarize_codebase.py`
 
 Reads code files and sends batched context to Ollama (default URL: `http://localhost:11434`, default model: `gemma4`).
@@ -38,6 +45,26 @@ python summarize_codebase.py C:\path\to\repo --verbose --show-batch-responses
 python summarize_codebase.py C:\path\to\repo --generate-readme --output-readme JSON\readme.generated.md
 python summarize_codebase.py C:\path\to\repo --json --output-json JSON\output.json
 ```
+
+#### CLI Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `folder` | positional | *(required)* | Folder path of the repository to summarize |
+| `--model` | string | `gemma4` | Ollama model name to use for summarization |
+| `--ollama-url` | string | `http://localhost:11434` | Base URL of the Ollama API |
+| `--max-context-tokens` | int | `8000` | Maximum estimated tokens per batch before sending to the model |
+| `--max-file-tokens` | int | `2000` | Maximum estimated tokens to keep from any single non-Python file; `0` keeps the full file |
+| `--system-prompt-file` | path | `system_prompt.md` | Markdown file containing the system prompt |
+| `--prompt-file` | path | `prompt.md` | Markdown file containing the user prompt |
+| `--batch-prompt-file` | path | `batch_prompt.md` | Markdown file containing the per-batch prompt |
+| `--readme-prompt-file` | path | `readme_prompt.md` | Markdown file containing the README generation prompt |
+| `--generate-readme` | flag | `false` | Generate a README markdown file from the repository summary |
+| `--output-readme` | path | `JSON/readme.generated.md` | Output path for the generated README (relative paths resolved under the target folder) |
+| `--verbose` | flag | `false` | Enable detailed runtime logs and request a more detailed summary from Ollama |
+| `--show-batch-responses` | flag | `false` | Print each batch response from the LLM to stderr |
+| `--json` | flag | `false` | Print the final summary response as JSON |
+| `--output-json` | path | `JSON/output.json` | Write JSON output to this path (relative paths resolved under the target folder) |
 
 Prompt files used by default:
 
@@ -59,6 +86,21 @@ Behavior:
 3. Regenerates missing outputs (or all selected outputs with `--force-regenerate`).
 4. Upserts entries into the `Projects` section of `work-data.json` by title.
 5. Git sync is optional and disabled by default.
+
+#### CLI Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--published-root` | path | `C:\Users\Aryan\...\Published` | Root folder containing project directories |
+| `--work-data` | path | `C:\Users\Aryan\...\work-data.json` | Path to the website `work-data.json` file |
+| `--project` | string *(repeatable)* | *(all projects)* | Project folder name under Published root, or an absolute project path. Pass multiple times to select several projects |
+| `--force-regenerate` | flag | `false` | Regenerate `JSON/output.json` even when it already exists |
+| `--check-work-data` | flag | `false` | Report whether `work-data.json` would change without actually writing it |
+| `--show-work-data-json` | flag | `false` | Print the project-entry JSON that would be merged into `work-data.json` |
+| `--git-sync` / `--no-git-sync` | flag | `false` | Run `git add`/`commit`/`push` for `work-data.json` after syncing |
+| `--commit-message` | string | `"Update work-data.json"` | Git commit message used when `--git-sync` is enabled |
+| `--git-remote` | string | `origin` | Git remote name to push to |
+| `--git-branch` | string | *(current branch)* | Git branch to push; defaults to the current branch when omitted |
 
 ## Key Defaults
 
